@@ -1,8 +1,49 @@
 # Greptile CLI
 
-Greptile is a Command Line Interface (CLI) tool for managing and interacting with multiple repositories through a chat-based interface. This tool facilitates the process of querying information, asking questions, and managing tasks across various code repositories.
+Greptile is a Command Line Interface (CLI) that lets developers search and understand complex codebases in English. Learn more here -> [greptile.com](https://greptile.com)
 
-## How to Download
+
+### Quickstart
+
+1. Install greptile via `npm`:
+   
+   ```bash
+   npm i -g greptile
+   ```
+
+2. Authenticate with GitHub:
+
+    ```bash
+    greptile auth
+    ```
+
+3. Add repos to the chat session:
+
+    ```bash
+    greptlie add [repo link]
+    ```
+
+    For example:
+
+    ```bash
+    greptile add https://github.com/facebook/react
+    ```
+
+    You can add up to 10 repos to the session. 
+
+4. Begin!
+    
+    ```bash
+    greptile start
+    ```
+
+    This should launch a shell that lets you ask questions to Greptile's AI with full context of the provided repos. 
+
+
+If you have any questions or comments, email us! founders@greptile.com
+
+
+### Install from source
 
 To use Greptile, you need to have Node.js installed on your machine. You can download and install Node.js from [here](https://nodejs.org/).
 
