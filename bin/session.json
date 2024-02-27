@@ -1,5 +1,6 @@
 {
   "repositories": [
-    
+    "https://github.com/dhruv317/greptile",
+    "https://github.com/facebook/react"
   ]
 }

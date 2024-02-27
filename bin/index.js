@@ -125,7 +125,6 @@ const options = yargs
   .command("remove <repository>", "Remove a repository from the session")
   .command("start", "Start Greptile application")
   .command("auth", "Redirect to GitHub authentication")
-  .command("config", "Configure Greptile settings")
   .command("addPath","Adds greptie to your Path")
   .demandCommand(1, "Please specify a command.")
   .help(true)
@@ -147,11 +146,6 @@ async function main() {
 
     case "help":
       executeHelpCommand();
-      process.exit();
-      break;
-
-    case "config":
-      executeConfigCommand();
       process.exit();
       break;
 
@@ -231,6 +225,9 @@ async function executeAddCommand(repositoryLink) {
       };
     }
     // Add the new repository to the session
+    if (!isUrlFormat(repositoryLink)){
+      repositoryLink = `https://github.com/${repositoryLink}`;
+    }
     const parsedRepo = parseIdentifier(repositoryLink)
     try {
       repository = parsedRepo.repository;
@@ -365,13 +362,18 @@ function executeListCommand() {
   }
 }
 
+function isUrlFormat(repository) {
+  const urlRegex = /^(https?:\/\/)?([^\/]+)\/([^\/]+)\/([^\/]+)\/?$/;
+  return urlRegex.test(repository);
+}
+
 function executeRemoveCommand(repository) {
   if (!isAuthenticated()) {
     console.error("Error: Please authenticate with GitHub first. Use 'greptile auth' to authenticate.");
     process.exit(1);
   } else {
     if (!repository) {
-      console.error("Error: Please provide a repository name. Example: greptile remove owner/repository");
+      console.error("Error: Please provide a repository name. Example: greptile remove owner/repository or https://github.com/facebook/react");
       process.exit(1);
     }
 
@@ -385,6 +387,10 @@ function executeRemoveCommand(repository) {
       sessionData = {
         repositories: []
       };
+    }
+
+    if (!isUrlFormat(repository)){
+      repository = `https://github.com/${repository}`;
     }
 
     // Check if the repository exists in the session
