@@ -1,4 +1,4 @@
-```markdown
+
 # Greptile CLI
 
 Greptile is a Command Line Interface (CLI) that enables developers to search and understand complex codebases in English. Learn more at [greptile.com](https://greptile.com).
