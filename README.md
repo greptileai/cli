@@ -1,69 +1,54 @@
+```markdown
 # Greptile CLI
 
-Greptile is a Command Line Interface (CLI) that lets developers search and understand complex codebases in English. Learn more here -> [greptile.com](https://greptile.com)
+Greptile is a Command Line Interface (CLI) that enables developers to search and understand complex codebases in English. Learn more at [greptile.com](https://greptile.com).
 
+## Quickstart
 
-### Quickstart
+1. **Install greptile via `npm`:**
 
-1. Install greptile via `npm`:
-   
    ```bash
-   npm i -g greptile
+   npm install -g greptile
+   greptile addPath
    ```
 
-2. Authenticate with GitHub:
+   This ensures Greptile is in your system's PATH for global usage. Without the addPath command, you will not be able to use the CLI tool..
+
+2. **Authenticate with GitHub:**
 
     ```bash
     greptile auth
     ```
 
-3. Add repos to the chat session:
+3. **Add repositories to the chat session:**
 
     ```bash
-    greptlie add [repo link]
+    greptile add [repo link or owner/repo]
     ```
 
-    For example:
+    - For example:
 
     ```bash
     greptile add https://github.com/facebook/react
     ```
 
-    You can add up to 10 repos to the session. 
+    - or
 
-4. Begin!
-    
+    ```bash
+    greptile add facebook/react
+    ```
+
+    You can add up to 10 repositories to the session.
+
+4. **Begin!**
+
     ```bash
     greptile start
     ```
 
-    This should launch a shell that lets you ask questions to Greptile's AI with full context of the provided repos. 
+    This launches a shell allowing you to ask questions to Greptile's AI with full context of the provided repositories.
 
-
-If you have any questions or comments, email us! founders@greptile.com
-
-
-### Install from source
-
-To use Greptile, you need to have Node.js installed on your machine. You can download and install Node.js from [here](https://nodejs.org/).
-
-Once Node.js is installed, you can download Greptile by cloning the repository:
-
-```bash
-git clone https://github.com/dhruv317/greptile.git
-```
-
-Navigate to the Greptile directory:
-
-```bash
-cd greptile
-```
-
-Install the required dependencies:
-
-```bash
-npm install
-```
+If you have any questions or comments, email us at founders@greptile.com.
 
 ## How to Run
 
@@ -82,10 +67,10 @@ greptile auth
 To add a repository to the session, use the following command:
 
 ```bash
-greptile add <repository_link>
+greptile add <repository_link or owner/repo>
 ```
 
-Replace `<repository_link>` with the GitHub repository you want to add.
+Replace `<repository_link>` with the GitHub repository URL or `<owner/repo>` with the owner and repository name.
 
 ### Listing Repositories
 
@@ -100,10 +85,10 @@ greptile list
 To remove a repository from the session, use the following command:
 
 ```bash
-greptile remove <repository_link>
+greptile remove <repository_link or owner/repo>
 ```
 
-Replace `<repository_link>` with the GitHub repository you want to remove.
+Replace `<repository_link>` with the GitHub repository URL or `<owner/repo>` with the owner and repository name.
 
 ### Starting Greptile
 
@@ -122,6 +107,8 @@ To display help information, use the following command:
 ```bash
 greptile help
 ```
-Note: The commands assume you are in the Greptile directory. If you want to use the commands globally, you may need to install Greptile globally or add it to your system's PATH.
 
 Feel free to explore and interact with Greptile to manage your repositories efficiently!
+```
+
+This version focuses on the essential information and improves the overall organization.

@@ -263,7 +263,9 @@ async function executeAddCommand(repositoryLink) {
             if (repoInfo.failed[0].message && repoInfo.failed[0].message == "Repository not processed by Onboard.") {
               writeRepoToFile(repositoryLink);
               const processRepo = await getRepo(repository);
+              if (debugMode){
               console.log(processRepo)
+              }
             }
             else {
               console.log(`Error ${repoInfo.failed[0].statusCode}: Not Found`);
@@ -782,7 +784,9 @@ function hasNoRepositories() {
   try {
     const sessionFile = fs.readFileSync(sessionPath, 'utf-8');
     const sessionData = JSON.parse(sessionFile);
+    if (debugMode){
     console.log(sessionData.repositories.length)
+    }
     return sessionData.repositories.length === 0;
   } catch (error) {
     if (debugMode) {
