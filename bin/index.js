@@ -26,7 +26,7 @@ let access_token = null;
 const { promisify } = require('util');
 const { debug } = require("console");
 const setTimeoutPromise = promisify(setTimeout);
-const debugMode = false;
+const debugMode = true;
 const payloadFilePath = path.resolve(__dirname, 'payload.json');
 var shell = require('shelljs');
 
@@ -125,13 +125,46 @@ const options = yargs
   .command("remove <repository>", "Remove a repository from the session")
   .command("start", "Start Greptile application")
   .command("auth", "Redirect to GitHub authentication")
-  .command("addPath","Adds greptie to your Path")
+  .command("addPath", "Adds greptie to your Path")
   .demandCommand(1, "Please specify a command.")
   .help(true)
   .argv;
 
 // Command execution based on user input
 async function main() {
+  if (!fs.existsSync(configPath)) {
+    const defaultConfig = {
+      github: {
+        access_token: null,
+      },
+    };
+    fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
+  }
+
+  // Check if session.json exists, create with default content if not
+  if (!fs.existsSync(sessionPath)) {
+    const defaultSession = {
+      repositories: [],
+    };
+    fs.writeFileSync(sessionPath, JSON.stringify(defaultSession, null, 2), 'utf-8');
+  }
+
+  // Check if payload.json exists, create with default content if not
+  if (!fs.existsSync(payloadFilePath)) {
+    const defaultPayload = {
+      messages: [],
+      repositories: [],
+      sessionId: '',
+      user: {
+        email: '',
+        token: {
+          github: '',
+        },
+      },
+    };
+    fs.writeFileSync(payloadFilePath, JSON.stringify(defaultPayload, null, 2), 'utf-8');
+  }
+  
   const command = options._[0];
   switch (command) {
 
@@ -225,7 +258,7 @@ async function executeAddCommand(repositoryLink) {
       };
     }
     // Add the new repository to the session
-    if (!isUrlFormat(repositoryLink)){
+    if (!isUrlFormat(repositoryLink)) {
       repositoryLink = `https://github.com/${repositoryLink}`;
     }
     const parsedRepo = parseIdentifier(repositoryLink)
@@ -263,8 +296,8 @@ async function executeAddCommand(repositoryLink) {
             if (repoInfo.failed[0].message && repoInfo.failed[0].message == "Repository not processed by Onboard.") {
               writeRepoToFile(repositoryLink);
               const processRepo = await getRepo(repository);
-              if (debugMode){
-              console.log(processRepo)
+              if (debugMode) {
+                console.log(processRepo)
               }
             }
             else {
@@ -326,6 +359,11 @@ function writeRepoToFile(repositoryLink) {
       const sessionFile = JSON.stringify(sessionData, null, 2);
       fs.writeFileSync(sessionPath, sessionFile, 'utf-8');
       console.log(`Repository '${repositoryLink}' added to the session.`);
+
+      // Update payload.json with the new session data
+      const payload = createPayload2("", createSessionId());
+      writePayloadToFile(payload);
+
     } catch (error) {
       console.error('Error writing session data to file:', error);
     }
@@ -333,6 +371,7 @@ function writeRepoToFile(repositoryLink) {
     console.log(`Repository '${repositoryLink}' already exists in the session.`);
   }
 }
+
 function executeListCommand() {
   if (!isAuthenticated()) {
     console.error("Error: Please authenticate with GitHub first. Use 'greptile auth' to authenticate.");
@@ -391,7 +430,7 @@ function executeRemoveCommand(repository) {
       };
     }
 
-    if (!isUrlFormat(repository)){
+    if (!isUrlFormat(repository)) {
       repository = `https://github.com/${repository}`;
     }
 
@@ -784,8 +823,8 @@ function hasNoRepositories() {
   try {
     const sessionFile = fs.readFileSync(sessionPath, 'utf-8');
     const sessionData = JSON.parse(sessionFile);
-    if (debugMode){
-    console.log(sessionData.repositories.length)
+    if (debugMode) {
+      console.log(sessionData.repositories.length)
     }
     return sessionData.repositories.length === 0;
   } catch (error) {
@@ -913,7 +952,7 @@ function serializeRepoKey(repoKey) {
 }
 
 function addToPath5() {
-  dirToAdd = __dirname.replace("/bin","")
+  dirToAdd = __dirname.replace("/bin", "")
   exec('export PATH="' + dirToAdd + ':$PATH"',
     (error, stdout, stderr) => {
       // console.log(`stdout: ${stdout}`);
@@ -921,7 +960,7 @@ function addToPath5() {
       if (error !== null) {
         // console.log(`exec error: ${error}`);
       }
-      else{
+      else {
         // console.log("Sucessfuly added to path")
       }
     });
@@ -929,7 +968,7 @@ function addToPath5() {
 
 function addToPath3() {
   // Get the current directory
-  const currentDirectory = __dirname.replace("/bin","");
+  const currentDirectory = __dirname.replace("/bin", "");
 
   // Get the current PATH variable value or use an empty string if it doesn't exist
   const currentPath = process.env.PATH || '';
@@ -952,7 +991,7 @@ function addToPath3() {
 
 function addToPath() {
   // Execute the Bash script
-  bashFile = path.join(currentDirectory.replace("/bin","") + "/addToPath.sh")
+  bashFile = path.join(currentDirectory.replace("/bin", "") + "/addToPath.sh")
   exec(bashFile, (error, stdout, stderr) => {
     if (error) {
       console.error(`Error: ${error.message}`);
@@ -968,7 +1007,7 @@ function addToPath() {
 
 function addToPath5() {
   // Get the current directory
-  const currentDirectory = __dirname.replace("/bin","");
+  const currentDirectory = __dirname.replace("/bin", "");
 
   // Get the current PATH variable value or use an empty string if it doesn't exist
   const currentPath = process.env.PATH || '';
