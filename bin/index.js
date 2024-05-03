@@ -24,12 +24,9 @@ const scope = 'read:user user:email';
 const githubEndpoint = 'https://github.com/login/device/code';
 let access_token = null;
 const { promisify } = require('util');
-const { debug } = require("console");
 const setTimeoutPromise = promisify(setTimeout);
-const debugMode = true;
+const debugMode = false;
 const payloadFilePath = path.resolve(__dirname, 'payload.json');
-var shell = require('shelljs');
-
 
 const executeAuthCommand = async () => {
   if (!isAuthenticated()) {
@@ -164,7 +161,7 @@ async function main() {
     };
     fs.writeFileSync(payloadFilePath, JSON.stringify(defaultPayload, null, 2), 'utf-8');
   }
-  
+
   const command = options._[0];
   switch (command) {
 
@@ -258,14 +255,11 @@ async function executeAddCommand(repositoryLink) {
       };
     }
     // Add the new repository to the session
-    if (!isUrlFormat(repositoryLink)) {
-      repositoryLink = `https://github.com/${repositoryLink}`;
-    }
     const parsedRepo = parseIdentifier(repositoryLink)
     try {
       repository = parsedRepo.repository;
       remote = parsedRepo.remote;
-      branch = parsedRepo.branch
+      branch = parsedRepo.branch || await getDefaultBranch(remote, repository);
     }
     catch (error) {
       console.log("There was an error processing the repository link. Please check your repository link again")
@@ -283,7 +277,7 @@ async function executeAddCommand(repositoryLink) {
       }
 
       if (repoInfo.responses[0]) {
-        writeRepoToFile(repositoryLink);
+        await writeRepoToFile(repositoryLink);
       }
       else {
         // Check whether this is supposed to be here
@@ -293,8 +287,8 @@ async function executeAddCommand(repositoryLink) {
           } else if (repoInfo.failed[0].statusCode === 401) {
             console.log(`Error ${repoInfo.failed[0].statusCode}: Unauthorized`);
           } else if (repoInfo.failed[0].statusCode === 404) {
-            if (repoInfo.failed[0].message && repoInfo.failed[0].message == "Repository not processed by Onboard.") {
-              writeRepoToFile(repositoryLink);
+            if (repoInfo.failed[0].message && repoInfo.failed[0].message == "Repository not processed by Greptile.") {
+              await writeRepoToFile(repositoryLink);
               const processRepo = await getRepo(repository);
               if (debugMode) {
                 console.log(processRepo)
@@ -320,8 +314,8 @@ async function executeAddCommand(repositoryLink) {
         } else if (repoInfo.failed[0].statusCode === 401) {
           console.log(`Error ${repoInfo.failed[0].statusCode}: Unauthorized`);
         } else if (repoInfo.failed[0].statusCode === 404) {
-          if (repoInfo.failed[0].message && repoInfo.failed[0].message == "Repository not processed by Onboard.") {
-            writeRepoToFile(repositoryLink);
+          if (repoInfo.failed[0].message && repoInfo.failed[0].message == "Repository not processed by Greptile.") {
+            await writeRepoToFile(repositoryLink);
             const processRepo = await getRepo(repository);
             if (debugMode) { console.log(processRepo) }
           }
@@ -340,7 +334,8 @@ async function executeAddCommand(repositoryLink) {
     // Write the updated session data back to the file
   }
 }
-function writeRepoToFile(repositoryLink) {
+
+async function writeRepoToFile(repositoryLink) {
   let sessionData;
   try {
     const sessionFile = fs.readFileSync(sessionPath, 'utf-8');
@@ -361,7 +356,7 @@ function writeRepoToFile(repositoryLink) {
       console.log(`Repository '${repositoryLink}' added to the session.`);
 
       // Update payload.json with the new session data
-      const payload = createPayload2("", createSessionId());
+      const payload = await createPayload2("", createSessionId());
       writePayloadToFile(payload);
 
     } catch (error) {
@@ -403,11 +398,6 @@ function executeListCommand() {
   }
 }
 
-function isUrlFormat(repository) {
-  const urlRegex = /^(https?:\/\/)?([^\/]+)\/([^\/]+)\/([^\/]+)\/?$/;
-  return urlRegex.test(repository);
-}
-
 function executeRemoveCommand(repository) {
   if (!isAuthenticated()) {
     console.error("Error: Please authenticate with GitHub first. Use 'greptile auth' to authenticate.");
@@ -430,12 +420,8 @@ function executeRemoveCommand(repository) {
       };
     }
 
-    if (!isUrlFormat(repository)) {
-      repository = `https://github.com/${repository}`;
-    }
-
     // Check if the repository exists in the session
-    const index = sessionData.repositories.indexOf(repository);
+    const index = sessionData.repositories.findIndex((repo) => repo.includes(repository));
     if (index === -1) {
       console.log(`Repository '${repository}' not found in the current session.`);
     } else {
@@ -505,7 +491,7 @@ async function getRepo(repo, branch = "main", remote = "github") {
       // "reload": true, // optional, if false will not reprocess if previously successful, default true
       // "notify": true // optional, whether to notify the user when finished, default true
     })
-    const repoInfo = await fetch(`https://dprnu1tro5.execute-api.us-east-1.amazonaws.com/prod/v1/repositories`, {
+    const repoInfo = await fetch("https://api.greptile.com/v1/repositories", {
       method: "POST",
       body: body,
       headers: {
@@ -525,7 +511,8 @@ async function getRepo(repo, branch = "main", remote = "github") {
 }
 
 async function getRepoInfo(repo, remote, branch) {
-  const repoInfo = await fetch('https://dprnu1tro5.execute-api.us-east-1.amazonaws.com/prod/v1/repositories/batch?repositories=' + getBase64(remote, repo, branch), {
+  // console.log("Called getRepoInfo with:", repo, remote, branch)
+  const repoInfo = await fetch('https://api.greptile.com/v1/repositories/batch?repositories=' + getBase64(remote, repo, branch), {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -536,29 +523,6 @@ async function getRepoInfo(repo, remote, branch) {
   const repoInfoJson = await repoInfo.json();
 
   return repoInfoJson;
-}
-
-async function getMembership() {
-  const membershipUrl = 'https://dprnu1tro5.execute-api.us-east-1.amazonaws.com/prod/v1/membership';
-  try {
-    const response = await fetch(membershipUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        "Authorization": "Bearer " + getAccessToken()
-      }
-    });
-    const responseData = await response.text();
-    if (debugMode) {
-      console.log(responseData);
-    }
-
-  } catch (error) {
-    if (debugMode) {
-      console.error('Error:', error.message);
-    }
-
-  }
 }
 
 async function useChatApi(userQuestion) {
@@ -573,7 +537,7 @@ async function useChatApi(userQuestion) {
     if (debugMode) {
       console.log("Payload is Empty, creating new Payload")
     }
-    payload = createPayload2(userQuestion, session_id);
+    payload = await createPayload2(userQuestion, session_id);
   } else {
     if (debugMode) {
       console.log("Appending user Message to Payload")
@@ -585,10 +549,8 @@ async function useChatApi(userQuestion) {
     console.log(payload)
   }
 
-  let newApiUrl = 'https://y32rqryql6ccw5nqa6qvr7bfbi0tmxuc.lambda-url.us-east-1.on.aws/'
-  // newApiUrl = 'https://mcxeqf7hzekaahjdqpojzf4hya0aflwj.lambda-url.us-east-1.on.aws/'
   try {
-    const response = await fetch(newApiUrl, {
+    const response = await fetch("https://api.greptile.com/v1/query", {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -596,7 +558,9 @@ async function useChatApi(userQuestion) {
       },
       body: JSON.stringify(payload),
     })
-
+    if (debugMode) {
+      console.log("Response: ", response)
+    }
 
     let buffer = '';
     decoder = new TextDecoder();
@@ -653,7 +617,6 @@ async function useChatApi(userQuestion) {
   }
 }
 
-
 function isAuthenticated() {
   try {
     const configFile = fs.readFileSync(configPath, 'utf-8');
@@ -693,6 +656,38 @@ function getAccessToken() {
     return {};
   }
 }
+
+async function getDefaultBranch(remote, repository) {
+  // console.log("Called getDefaultBranch with:", remote, repository)
+
+  const token = getAccessToken();
+  const url = remote === "github" ? `https://api.github.com/repos/${repository}`
+  // TODO: Add full support for other remotes
+    // : remote === "gitlab" ? `https://gitlab.com/api/v4/projects/${repository}`
+    // : remote === "bitbucket" ? `https://api.bitbucket.org/2.0/repositories/${repository}`
+    // : remote === "azure" ? `https://dev.azure.com/${repository}/_apis/git/repositories`
+    // : remote === "visualstudio" ? `https://dev.azure.com/${repository}/_apis/git/repositories`
+    : null;
+
+  if (!url) return "main";
+
+  try {
+    const data = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }).then((response) => {
+      return response.json();
+    });
+    return data.default_branch;
+  } catch (error) {
+    if (debugMode) {
+      console.error('Error:', error);
+    }
+    return "main";
+  }
+}
+
 function writeConfig(access__token) {
   // Create and write to the file
   const config = {
@@ -714,7 +709,6 @@ function writeConfig(access__token) {
   }
 }
 
-
 function getBase64(remote, repository, branch) {
   let repo = remote + ":" + repository + ":" + branch;
   if (debugMode) {
@@ -728,8 +722,7 @@ function createSessionId() {
     Math.random().toString(36).substring(2, 15);
 }
 
-
-function createPayload2(userQuestion, session_id, remote = "github", branch = "main", external = false) {
+async function createPayload2(userQuestion, session_id, remote = "github", branch = "main", external = false) {
   // Load existing session data
   let sessionData;
   try {
@@ -750,19 +743,21 @@ function createPayload2(userQuestion, session_id, remote = "github", branch = "m
         content: userQuestion
       }
     ],
-    repositories: sessionData.repositories.map(repo => ({
-      remote: parseIdentifier(repo).remote,
-      repository: parseIdentifier(repo).repository,
-      branch: parseIdentifier(repo).branch,
-      name: parseIdentifier(repo).repository,
-      external: external,
+    repositories: await Promise.all(sessionData.repositories.map(async (repo) => {
+      const parsedRepo = parseIdentifier(repo);
+      return {
+        remote: parsedRepo.remote,
+        name: parsedRepo.repository,
+        branch: parsedRepo.branch || await getDefaultBranch(parsedRepo.remote, parsedRepo.repository),
+        name: parsedRepo.repository,
+        external: external,
+      };
     })),
     sessionId: session_id,
   }
 
   return payload;
 }
-
 
 function readPayloadFromFile() {
   try {
@@ -807,18 +802,6 @@ function appendMessageToPayload(payload, content) {
   return payload;
 }
 
-function hasRepositoriesInSession() {
-  try {
-    const sessionFile = fs.readFileSync(sessionPath, 'utf-8');
-    const sessionData = JSON.parse(sessionFile);
-
-    return sessionData.repositories.length > 0;
-  } catch (error) {
-    // If the file doesn't exist or has invalid JSON, return false
-    return false;
-  }
-}
-
 function hasNoRepositories() {
   try {
     const sessionFile = fs.readFileSync(sessionPath, 'utf-8');
@@ -843,11 +826,11 @@ function parseIdentifier(input) {
     if (!match) return null;
     const keys = input.split(":");
     if (keys.length === 1)
-      return serializeRepoKey({
+      return {
         remote: "github",
         branch: "",
         repository: keys[0],
-      });
+      };
     if (keys.length === 3) {
       let remote = keys[0],
         branch = keys[1],
@@ -857,11 +840,11 @@ function parseIdentifier(input) {
         repository_list.push(repository_list[1]);
         repository = repository_list.join("/");
       }
-      return serializeRepoKey({
+      return {
         remote: remote,
         branch: branch,
         repository: repository,
-      });
+      };
     }
     return null; // only 2 entries may be ambiguous (1 might be as well...)
   }
@@ -920,15 +903,7 @@ function parseIdentifier(input) {
     }
     if (!repository) return null;
     // console.log(remote,branch,repository)
-    if (typeof branch === "undefined") {
-      branch = "main";
-    }
     return { remote, branch, repository };
-    // return serializeRepoKey({
-    //   remote: remote,
-    //   branch: branch || "main",
-    //   repository: repository,
-    // });
   } catch (e) {
     return null;
   }
@@ -946,49 +921,6 @@ function isDomain(input) {
   }
 }
 
-function serializeRepoKey(repoKey) {
-  const { remote, branch, repository } = repoKey;
-  return `${remote}:${branch}:${repository}`;
-}
-
-function addToPath5() {
-  dirToAdd = __dirname.replace("/bin", "")
-  exec('export PATH="' + dirToAdd + ':$PATH"',
-    (error, stdout, stderr) => {
-      // console.log(`stdout: ${stdout}`);
-      // console.log(`stderr: ${stderr}`);
-      if (error !== null) {
-        // console.log(`exec error: ${error}`);
-      }
-      else {
-        // console.log("Sucessfuly added to path")
-      }
-    });
-}
-
-function addToPath3() {
-  // Get the current directory
-  const currentDirectory = __dirname.replace("/bin", "");
-
-  // Get the current PATH variable value or use an empty string if it doesn't exist
-  const currentPath = process.env.PATH || '';
-
-  // Check if the current directory is already in the PATH
-  if (currentPath.includes(currentDirectory)) {
-    console.log(`Current directory '${currentDirectory}' is already in the PATH.`);
-    return;
-  }
-
-  // Update the PATH variable by adding the current directory
-  process.env.PATH = `${currentDirectory}${path.delimiter}${currentPath}`;
-
-  // Optionally, you can persist the changes to a user's profile (e.g., .bashrc, .zshrc)
-  // Uncomment the following lines if you want to make the change permanent
-  const profilePath = path.join(process.env.HOME || process.env.USERPROFILE, '.bashrc');
-  fs.appendFileSync(profilePath, `\nexport PATH=${process.env.PATH}\n`);
-  console.log(`Current directory '${currentDirectory}' added to the PATH.`);
-}
-
 function addToPath() {
   // Execute the Bash script
   bashFile = path.join(currentDirectory.replace("/bin", "") + "/addToPath.sh")
@@ -1004,34 +936,5 @@ function addToPath() {
     console.log(stdout);
   });
 }
-
-function addToPath5() {
-  // Get the current directory
-  const currentDirectory = __dirname.replace("/bin", "");
-
-  // Get the current PATH variable value or use an empty string if it doesn't exist
-  const currentPath = process.env.PATH || '';
-
-  // Check if the current directory is already in the PATH
-  if (currentPath.includes(currentDirectory)) {
-    console.log(`Current directory '${currentDirectory}' is already in the PATH.`);
-    return;
-  }
-
-  // Update the PATH variable by adding the current directory
-  process.env.PATH = `${currentDirectory}${path.delimiter}${currentPath}`;
-
-  // Append the change to a user's profile to make it permanent
-  // Choose the correct profile file based on your shell
-  const profilePath = path.join(process.env.HOME || process.env.USERPROFILE, '.bashrc'); // For Bash users
-  // const profilePath = path.join(process.env.HOME || process.env.USERPROFILE, '.zshrc'); // For Zsh users
-  fs.appendFileSync(profilePath, `\nexport PATH="${process.env.PATH}"\n`);
-  console.log(`Current directory '${currentDirectory}' added to the PATH.`);
-}
-
-// Call the function
-// addToPath();
-
-// addToPath()
 
 main()

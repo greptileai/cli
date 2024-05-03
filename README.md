@@ -48,7 +48,7 @@ Greptile is a Command Line Interface (CLI) that enables developers to search and
 
     This launches a shell allowing you to ask questions to Greptile's AI with full context of the provided repositories.
 
-If you have any questions or comments, email us at founders@getonboardai.com.
+If you have any questions or comments, email us at founders@greptile.com.
 
 ## How to Run
 

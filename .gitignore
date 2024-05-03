@@ -1,4 +1,5 @@
 session.json
 config.json
 payload.json
-
+node_modules/**
+release/**
