@@ -3,3 +3,4 @@ config.json
 payload.json
 node_modules/**
 release/**
+.DS_Store
