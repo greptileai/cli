@@ -1,6 +1,6 @@
 session.json
 config.json
 payload.json
-node_modules/**
+node_modules
 release/**
 .DS_Store
