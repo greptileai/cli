@@ -1,31 +1,75 @@
 #!/usr/bin/env bash
 # Greptile CLI installer.
-# Usage:   curl -fsSL https://greptile.com/install | bash
-# Pinning: curl -fsSL https://greptile.com/install | GREPTILE_VERSION=v3.1.0 bash
-# Destination override: GREPTILE_INSTALL_DIR=/usr/local/bin curl ... | bash
+#
+# By default we delegate to Homebrew or npm if either is on PATH so updates,
+# uninstalls, and version pinning work the way you'd expect from a package
+# manager. Force a specific path with GREPTILE_INSTALL_METHOD:
+#   - brew    use Homebrew (greptileai/tap/greptile)
+#   - npm     use npm install -g
+#   - direct  download the prebuilt JS bundle into ~/.greptile/bin/
+#   - auto    pick the first available of brew, npm, direct (default)
+#
+# Usage:   curl -fsSL https://raw.githubusercontent.com/greptileai/cli/main/install.sh | bash
+# Pinning: curl -fsSL https://raw.githubusercontent.com/greptileai/cli/main/install.sh | GREPTILE_VERSION=v3.0.1 bash
+# Direct:  curl -fsSL https://raw.githubusercontent.com/greptileai/cli/main/install.sh | GREPTILE_INSTALL_METHOD=direct bash
+# Destination override (direct only): GREPTILE_INSTALL_DIR=/usr/local/bin curl ... | bash
 set -eu
 
 REPO="greptileai/cli"
 INSTALL_DIR="${GREPTILE_INSTALL_DIR:-$HOME/.greptile/bin}"
 VERSION="${GREPTILE_VERSION:-latest}"
+METHOD="${GREPTILE_INSTALL_METHOD:-auto}"
 
 err() { printf '\033[31merror:\033[0m %s\n' "$1" >&2; exit 1; }
 info() { printf '\033[36m==>\033[0m %s\n' "$1"; }
 
 uname_s="$(uname -s)"
 case "$uname_s" in
-  Darwin) ;;
-  Linux)  err "Linux installs are not supported yet. Build from source or wait for the next release." ;;
-  *)      err "Unsupported OS: $uname_s." ;;
+  Darwin|Linux) ;;
+  *) err "Unsupported OS: $uname_s." ;;
 esac
 
+if [ "$METHOD" = "auto" ]; then
+  if command -v brew >/dev/null 2>&1; then
+    METHOD=brew
+  elif command -v npm >/dev/null 2>&1; then
+    METHOD=npm
+  else
+    METHOD=direct
+  fi
+fi
+
+case "$METHOD" in
+  brew)
+    info "Installing via Homebrew"
+    brew install greptileai/tap/greptile
+    exit 0
+    ;;
+  npm)
+    info "Installing via npm"
+    if [ "$VERSION" = "latest" ]; then
+      npm install -g greptile
+    else
+      npm install -g "greptile@${VERSION#v}"
+    fi
+    exit 0
+    ;;
+  direct)
+    ;;
+  *)
+    err "Unknown GREPTILE_INSTALL_METHOD: $METHOD (use auto, brew, npm, or direct)"
+    ;;
+esac
+
+# Direct path: download the JS bundle from GitHub Releases.
+
 if ! command -v node >/dev/null 2>&1; then
-  err "greptile needs Node.js 22+. Install with: brew install node  (or https://nodejs.org/)"
+  err "greptile needs Node.js 22+ for the direct install. Install Node, or re-run with GREPTILE_INSTALL_METHOD=brew."
 fi
 
 node_major="$(node -e 'process.stdout.write(process.versions.node.split(".")[0])')"
-if [ "${node_major}" -lt 22 ]; then
-  err "greptile needs Node.js 22+ (you have ${node_major}). Upgrade and re-run."
+if [ "$node_major" -lt 22 ]; then
+  err "greptile needs Node.js 22+ (you have $node_major). Upgrade and re-run."
 fi
 
 # Resolve the version tag by following the redirect from /releases/latest.
