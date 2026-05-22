@@ -41,12 +41,21 @@ fi
 
 case "$METHOD" in
   brew)
-    info "Installing via Homebrew"
-    brew install greptileai/tap/greptile
+    # `brew install` errors when the formula is already installed; treat the
+    # installer as idempotent and upgrade in place instead.
+    if brew list --formula greptileai/tap/greptile >/dev/null 2>&1; then
+      info "greptile already installed via Homebrew, upgrading"
+      brew upgrade greptileai/tap/greptile || info "Already at the latest version."
+    else
+      info "Installing via Homebrew"
+      brew install greptileai/tap/greptile
+    fi
     exit 0
     ;;
   npm)
     info "Installing via npm"
+    # npm install -g is already idempotent: same version is a noop, older
+    # version upgrades in place.
     if [ "$VERSION" = "latest" ]; then
       npm install -g greptile
     else
@@ -84,6 +93,17 @@ fi
 
 ARTIFACT_URL="https://github.com/${REPO}/releases/download/${VERSION}/greptile.js"
 DEST="${INSTALL_DIR}/greptile"
+TARGET_VERSION="${VERSION#v}"
+
+# Skip the download (and the 10 MB it carries) if the existing binary already
+# reports the target version. Best-effort: any parse mismatch falls through.
+if [ -x "$DEST" ]; then
+  current="$("$DEST" --help 2>&1 | grep -oE 'greptile v[0-9.]+' | head -1 | sed 's/greptile v//')" || true
+  if [ -n "${current:-}" ] && [ "$current" = "$TARGET_VERSION" ]; then
+    info "greptile v$TARGET_VERSION already installed at $DEST"
+    exit 0
+  fi
+fi
 
 info "Installing greptile ${VERSION} into ${INSTALL_DIR}"
 mkdir -p "$INSTALL_DIR"
